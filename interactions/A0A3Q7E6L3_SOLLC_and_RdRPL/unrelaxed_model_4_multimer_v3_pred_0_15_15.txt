@@ -1,0 +1,6 @@
+
+Chn1 Chn2  PAE Dist  Type   ipSAE    ipSAE_d0chn ipSAE_d0dom  ipTM_af  ipTM_d0chn     pDockQ     pDockQ2    LIS       n0res  n0chn  n0dom   d0res   d0chn   d0dom  nres1   nres2   dist1   dist2  Model
+B    C     15   15   asym  0.146335    0.685198    0.315318    0.665    0.331004      0.1399     0.0629     0.1890     163   3118    400    4.76   16.29    7.22    229     171     109      47   data/RdRPL/A0A3Q7E6L3_SOLLC_and_RdRPL/unrelaxed_model_4_multimer_v3_pred_0
+C    B     15   15   asym  0.168594    0.652156    0.461112    0.665    0.623445      0.1399     0.0339     0.1066     196   3118   1088    5.21   16.29   10.89    888     200      52      89   data/RdRPL/A0A3Q7E6L3_SOLLC_and_RdRPL/unrelaxed_model_4_multimer_v3_pred_0
+B    C     15   15   max   0.168594    0.685198    0.461112    0.665    0.623445      0.1399     0.0629     0.1478     196   3118   1088    5.21   16.29   10.89    229     888     109      52   data/RdRPL/A0A3Q7E6L3_SOLLC_and_RdRPL/unrelaxed_model_4_multimer_v3_pred_0
+
