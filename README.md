@@ -1,123 +1,404 @@
-# EXPLORAE — Automated Scoring and Integration of Protein–Protein Interaction Metrics
 
-EXPLORAE computes, aggregates and exports multiple structural‑confidence, biophysical, and energy‑based metrics from AlphaFold‑Multimer predictions into an Excel file. It scans interaction model folders produced by AlphaFold‑Multimer, computes interface confidence and energy metrics (ipSAE, pDockQ2, ipTM, pTM, PRODIGY predictions, Rosetta interface analysis), and writes the results into a master Excel/CSV sheet for downstream analysis.
+
+# Binder Selection Pipeline – Complete Documentation
+
+## Overall Objective
+
+The notebook `binder_selection_pipeline.ipynb` implements a **robust machine learning pipeline** to distinguish binders (validated protein–protein interactions) from non-binders (design failures).
+
+It follows the methodology of the reference paper (Overath, Max D., Andreas S. H. Rygaard, Christian P. Jacobsen, et al. *“Predicting Experimental Success in De Novo Binder Design: A Meta-Analysis of 3,766 Experimentally Characterised Binders.”* Preprint, bioRxiv, September 17, 2025. [https://doi.org/10.1101/2025.08.14.670059](https://doi.org/10.1101/2025.08.14.670059).)
+
+The latter uses:
+
+* **Sparse Logistic Regression** (L1 penalty) for classification
+* **Greedy Feature Selection (Individuals + Interactions)** (greedy forward selection) with nested cross-validation (nested CV)
+
+**Main output**: A trained model capable of predicting whether a PPI prediction is viable.
+
+
+## Flux Général du Pipeline
+
+┌─────────────────────────────────────────────────┐
+│ 1. DATA LOADING & CLEANING                      │
+│    - Positives (binders)                        │
+│    - Negatives (non-binders)                    │
+│    - Merging & normalization                    │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│ 2. STRATIFIED TRAIN/VAL/TEST SPLIT (70/10/20)   │
+│    - Avoid data leakage                         │
+│    - Tracked indices for reproducibility        │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│ 3. EXPLORATORY DATA ANALYSIS (EDA)              │
+│    - Distributions, correlations                │
+│    - Statistical tests (Mann-Whitney U)         │
+│    - Effect sizes (rank-biserial)               │
+│    - Bootstrap 95% CI                           │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│ 4. UNIVARIATE FEATURE EVALUATION                │
+│    - Average Precision (AP) per feature         │
+│    - ROC AUC                                    │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│ 5. INTERACTION GENERATION                       │
+│    - Pairwise products f_i × f_j                │
+│    - Top 20 interactions by AP                  │
+│    - Added to the selection pool                │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│ 6. GREEDY SELECTION (GREEDY + NESTED CV)        │
+│    - Iterative feature addition                 │
+│    - Condition : ΔAP ≥ 0.005                    │
+│    - Internal CV on TRAIN (5-fold stratified)   │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│ 7. FINAL EVALUATION ON TEST SET                 │
+│    - Model trained on TRAIN                     │
+│    - Normalization : StandardScaler             │
+│    - Optimal threshold via VALIDATION           │
+│    - AP, AUC, F1, Precision, Recall, Accuracy   │
+│    - Bootstrap 95% CI                           │
+│    - False negative analysis                    │
+└─────────────────────────────────────────────────┘
+
+## Detailed Sections
+
+### Data Loading and Exploration
+
+**Source files**:
+
+* `../src/data/positive_labeled_dataset_dG_SASA.csv` → Validated binders
+* `../src/data/negative_labeled_dataset_dG_SASA.csv` → Design failures
+
+**Process**:
+
+1. Load both CSV files
+2. Assign labels (1 = binder, 0 = non-binder)
+3. Merge and randomly shuffle
+4. Create `pKd = -log₁₀(Kd + ε)` from `prodigy_kd`
+5. Clean numeric columns (replace commas with dots, handle NaNs)
+6. Remove rows with NaNs in the selected features
+
+**Features used**:
+
+* `ipsae` – AlphaFold2 confidence (iPAE, interface Predicted Aligned Error)
+* `pdockq2` – DockQ v2 quality score
+* `pKd` – log-transformed binding affinity
+* `ipTM+pTM` – combined AlphaFold TM confidence
+* `dG_SASA_ratio` – energy / solvent-accessible surface ratio
+* `prodigy_dg_internal` – PRODIGY internal energy prediction
+* `ipTM` – interface template modeling score
+* `dG_rosetta` – Rosetta energy scoring
+
+**Key statistics**:
+
+* Descriptive evaluation per class (mean, median, std)
+* Binder vs non-binder comparison
 
 ---
 
-## METRICS TABLE
+### Train / Validation / Test Split (Stratified)
 
-The table below lists the metrics produced by EXPLORAE, their units, source, and short meaning. The Excel output uses the column names shown in the table; units are reported in the table and are the canonical units for each metric.
+**Critical importance**: Avoid **data leakage**
+
+**Strategy**:
+
+* **70% TRAIN**: Used for
+
+  * Exploratory data analysis (EDA)
+  * Feature selection
+  * Model training
+  * Internal cross-validation
+
+* **10% VALIDATION**: Used for
+
+  * Univariate feature evaluation
+  * Threshold optimization (F1 maximization)
+  * Tuning decisions
+
+* **20% TEST**: Never touched beforehand
+
+  * Single final evaluation
+  * Performance reporting
+
+**Stratification**: Preserves the positive/negative ratio in each split.
+
+**Tracking**: Indices are stored (`train_indices`, `val_indices`, `test_indices`) for reproducibility.
 
 ---
 
-## EXPLANATION OF METRICS
+### Exploratory Data Analysis (EDA)
 
-### 1. AlphaFold confidence metrics
-- What they measure:
-  - ipSAE: an interface-centric transform of AlphaFold Predicted Aligned Error (PAE). It uses a PTM‑like transform to convert PAE values into a 0–1 confidence per residue pair and aggregates them to give an interface confidence score.
-  - pDockQ2: a data‑driven interface correctness score combining local confidence (pLDDT) and transformed PAE; mapped through an empirically fitted logistic function.
-- Statistical/physical/confidence-based:
-  - ipSAE: confidence‑based (derived from predicted errors, empirical transform).
-  
+#### Distributions
 
-  ---
+**Histograms**:
 
-  ## Table des métriques (rapide)
+* Compare binders vs non-binders for each feature
+* Reveal separability
 
-  | Metric | Unité | Source | Sens |
-  |--------|-------|--------|------|
-  | ipSAE |  | AlphaFold (PAE → transform) | confiance sur l'interface |
-  | pDockQ2 |  | AF + régression | score de qualité d'interface |
-  | ipTM+pTM |  | AlphaFold | score combiné pour le classement |
-  | PRODIGY Kd | M | PRODIGY | constante de dissociation prédite |
-  | PRODIGY ΔG internal | kcal/mol | PRODIGY | énergie libre prédite (empirique) |
-  | Rosetta dG_cross | REU | Rosetta (PyRosetta) | énergie d'interface (score Rosetta) |
-  | Rosetta dSASA_int | Å² | Rosetta | surface enfouie (SASA) |
-  | dG_SASA_ratio | REU/Å² | Rosetta | énergie normalisée par surface |
+#### Statistical Tests
 
-  Les noms de colonnes écrits dans l'Excel sont : `ipsae`, `pdockq2`, `prodigy_kd`, `prodigy_dg_internal`, `dG_rosetta`, `dG_SASA_ratio`, `ipTM+pTM`.
+**Mann–Whitney U test** (non-parametric):
 
-  ---
+* Compares distributions without assuming normality
+* Robust to outliers
 
-  ## Explication des groupes de métriques
+**FDR correction** (Benjamini–Hochberg):
 
-  ### AlphaFold (confiance)
-  - ipSAE : transforme la matrice PAE pour donner une confiance locale sur l'interface. C'est adimensionnel et entre 0 et 1 (plus grand = meilleur).
-  - pDockQ2 : combine pLDDT local (confiance) et PAE transformé.
-  - ipTM / pTM : mesures de type TM issues des sorties AlphaFold (ici on lit `ranking_debug.json` pour `iptm` et `iptm+ptm`).
+* Controls the false discovery rate under multiple testing
+* Adjusted p-values reported
 
-  Ces métriques sont basées sur la confiance / erreurs prédites par AlphaFold.
+**Effect size** (rank-biserial correlation):
 
-  ### PRODIGY
-  - PRODIGY calcule d'abord un `ΔG` empirique (appelé `ba_val`) via un modèle linéaire sur les contacts et la composition d'interface. Cette valeur est en kcal/mol.
-  - Ensuite, `Kd` est dérivé par la relation utilisée dans le code : `kd = exp(ΔG / (R*T))` (R en kcal·mol⁻1·K⁻1). Inversement `ΔG = R*T*ln(Kd)`.
+* Ranges from −1 to 1, measures the magnitude of the difference
+* Interpretation: 0.1 = small, 0.3 = medium, 0.5 = large
 
-  ### Rosetta (PyRosetta)
-  - `dG_cross` : score d'interface renvoyé par `InterfaceAnalyzerMover` (unités REU = Rosetta Energy Units).
-  - `dSASA_int` : surface enfouie (Å²) calculée par Rosetta.
-  - `dG_SASA_ratio` : `dG_cross / dSASA_int` (REU/Å²), utile pour normaliser l'énergie par surface.
+#### Bootstrap 95% CI
 
-  Ces valeurs viennent de Rosetta (score empirique, utile en comparaisons internes)
+* Resampling with replacement: 1000 iterations
+* Confidence intervals for median difference and rank-biserial correlation
+* Robust to small sample sizes
 
-  ---
+#### Dimensionality
 
-  ## Installation rapide
+**2D PCA**:
 
-  ```bash
-  git clone https://github.com/adboussif/explorae.git
-  cd explorae
-  python3 -m venv .venv
-  source .venv/bin/activate
-  ./install_explorae.sh
+* Visualizes binder vs non-binder separation
 
+---
 
-  ## Usage de base
+### Univariate Feature Evaluation
 
-  ```bash
-  python ./src/explorae.py ./test.xlsx ./interactions
-  ```
+Evaluates each feature **independently** as a predictor.
 
-  Ce que fait le script :
-  - parcourt `./interactions` (un dossier par interaction),
-  - lit `ranking_debug.json` pour retrouver le modèle top et ipTM/pTM,
-  - calcule ipSAE / pDockQ2 via `ipsae.py` (fichiers de résumé),
-  - lance PRODIGY ( CLI + parsing),
-  - lance PyRosetta InterfaceAnalyze,
-  - met à jour l'Excel/CSV en ajoutant les colonnes (ou les crée si manquantes).
+**Protocol**:
 
-  ---
+1. For each feature `f`:
 
-  ## Options (principales)
+   * Fit a LogisticRegression model (L1, balanced) on TRAIN
+   * Normalize using StandardScaler (fit on TRAIN, apply to VALIDATION)
+   * Evaluate on the VALIDATION set only
 
-  | Option | Usage |
-  |--------|-------|
-  | `--pae` | seuil PAE (Å) pour ipSAE (par défaut `10`) |
-  | `--dist` | cutoff distance (Å) pour ipSAE (par défaut `10`) |
-  | `--id-col` | nom de la colonne ID dans l'Excel (par défaut `jobs`) |
-  | `--sheet` | onglet Excel (index ou nom, par défaut `0`) |
+2. Computed metrics:
 
-  Exemple :
-  ```bash
-  python ./src/explorae.py test.xlsx ./interactions --pae 12 --dist 8 --id-col jobs --sheet 0
-  ```
+   * **ROC AUC**: Area under the ROC curve
+   * **Average Precision (AP)**: Area under the Precision–Recall curve
+   * **Coefficients**: Signs and magnitudes
 
-  ---
+**Comparison with the paper**:
 
-  ---
+* Paper, Figure 3B: reports AP per univariate feature
+* Our approach: identical; similar feature ranking expected
 
-  ## Exemple de sortie console
+---
 
-  ```
-=== A0A3Q7EZF3_SOLLC_and_RdRPL ===
-ipSAE   : 0.014296
-pDockQ2 : 0.079000
-PRODIGY Kd (M): 2.178e-07
-PRODIGY ΔG internal : -9.082449616519174
-iptm+ptm: 6.480e-01
-iptm : 6.440e-01
-dG_SASA_ratio (kJ/A): 2.069e+00
-dG Rosetta (dG_cross): 3342.93115234375
-  ```
+### Interaction Generation
 
-  ---
+**Scientific motivation**:
 
+* No single feature is perfect
+* Combining confidence + physics: product of two features
+* Examples:
+
+  * `ipsae × prodigy_dg_internal` → confidence × thermodynamics
+  * `pdockq2 × dG_SASA_ratio` → interface quality × thermodynamic property
+
+**Implementation**:
+
+```
+For each pair (i, j) with i < j:
+    interaction = feature_i × feature_j
+    Evaluate univariately on VALIDATION
+    Compute AP
+Keep the top 20 interactions by AP
+```
+
+**Total generated**:
+
+* Single features: 8
+* Pairwise combinations: C(8,2) = 28
+* **Top 20 interaction candidates** for greedy selection
+
+---
+
+### Greedy Feature Selection with Nested CV
+
+**Algorithm** (reproduced from the paper, section “Logistic Regression Classifier”):
+
+```
+selected_features = []
+remaining_features = all_features (8 singles + 20 interactions)
+improvement_threshold = 0.005
+
+while remaining_features:
+    current_AP = CV_score(selected_features, TRAIN)
+    
+    for candidate in remaining_features:
+        test_AP = CV_score(selected_features + [candidate], TRAIN)
+        if test_AP > best_AP:
+            best_candidate = candidate
+            best_AP = test_AP
+    
+    improvement = best_AP - current_AP
+    
+    if improvement ≥ improvement_threshold:
+        selected_features.append(best_candidate)
+        remaining_features.remove(best_candidate)
+    else:
+        STOP  # No sufficient improvement
+        
+return selected_features
+```
+
+**Cross-validation**:
+
+* **Outer loop** (greedy): iterates over candidates
+* **Inner loop** (robustness): 5-fold stratified CV on TRAIN
+
+  * For each fold: fit/evaluate LogisticRegression
+  * Metric: mean AP across the 5 folds
+  * StandardScaler fit fold-by-fold (prevents leakage)
+
+**Stopping criterion**:
+
+* Condition: `ΔAP < 0.005` (no significant improvement)
+* Prevents overfitting by adding spurious features
+
+**Difference vs the paper**:
+
+* Paper: Leave-One-Group-Out (LOGO) due to target-grouped data
+* Here: 5-fold StratifiedKFold (non-grouped data)
+* Same principle: multi-fold robustness + greedy selection
+
+---
+
+### Final Evaluation on the TEST Set
+
+**Critical protocol**:
+
+1. **First and only access to the TEST set**
+
+2. **Training the final model**:
+
+   * Selected features only
+   * StandardScaler fit on the full TRAIN set
+   * LogisticRegression (L1, balanced) fit on the full TRAIN set
+
+3. **Threshold optimization**:
+
+   * On the VALIDATION set: find threshold maximizing F1
+   * Apply this threshold once to the TEST set
+
+4. **Final metrics** (TEST set):
+
+   * **ROC AUC**: Probability that a binder ranks above a random non-binder
+   * **Average Precision (AP)**: Area under the Precision–Recall curve
+   * **Precision**: TP / (TP + FP) = confidence in positive predictions
+   * **Recall (Sensitivity)**: TP / (TP + FN) = binder coverage
+   * **F1-score**: Harmonic mean of precision and recall
+   * **Accuracy**: (TP + TN) / Total
+   * **Specificity**: TN / (TN + FP) = non-binder rejection
+
+5. **95% Confidence Intervals** (Bootstrap):
+
+   * 1000 resamplings with replacement of the TEST set
+   * 2.5 and 97.5 percentiles for CIs
+   * Uncertainty bands on ROC/PR curves
+
+6. **Confusion Matrix**:
+
+   * Visualizes TP, TN, FP, FN
+   * Quantitative error analysis
+
+7. **False Negative Analysis** (missed binders):
+
+---
+
+## Key Parameters & Tuning
+
+| Parameter             | Value     | Justification      |
+| --------------------- | --------- | ------------------ |
+| RANDOM_STATE          | 42        | Reproducibility    |
+| Train/Val/Test        | 70/10/20  | ML standard        |
+| Improvement threshold | 0.005     | Greedy stopping    |
+| CV folds              | 5         | Stratified         |
+| Penalty               | L1        | Sparse features    |
+| Solver                | liblinear | L1 penalty         |
+| class_weight          | balanced  | Class imbalance    |
+| Bootstrap iterations  | 1000      | Robust CIs         |
+| Top interactions      | 20        | Reduce overfitting |
+
+---
+
+## Use Cases
+
+### Prediction on New Data
+
+1. Compute the 8 single features
+2. Compute the selected interactions (from the 20 candidates)
+3. Normalize using the trained StandardScaler
+4. Apply the LogisticRegression model
+5. Compare predicted probability to the optimal threshold
+
+### Interpretability
+
+* Visualize distributions of selected features
+* Compare coefficients → most influential features
+* Analyze false negatives → model edge cases
+
+### Iterative Improvement
+
+* Add new biological features
+* Recompute interactions
+* Rerun greedy selection
+* Compare TEST set performance
+
+---
+
+## Common Pitfalls & Solutions
+
+### 1. **Data Leakage**
+
+**Problem**: Using the TEST set before final evaluation
+**Solution**: Strict separation — TRAIN (70%) → EDA, feature selection, training
+
+### 2. **Overfitting from Too Many Features**
+
+**Problem**: Adding too many features degrades test performance
+**Solution**: Minimum improvement threshold (ΔAP = 0.005)
+
+### 3. **Class Imbalance**
+
+**Problem**: In the paper: 88% non-binders → biased model
+**Solution**: `class_weight="balanced"` + AP metric (robust)
+
+### 4. **Incorrect Normalization**
+
+**Problem**: Fitting StandardScaler on non-separated data
+**Solution**: Always fit scaler on TRAIN only, apply to VAL/TEST
+
+### 5. **Default Decision Threshold**
+
+**Problem**: Threshold 0.5 may be suboptimal
+**Solution**: Optimize on VALIDATION (max F1), apply to TEST
+
+---
+
+## References
+
+**Main Paper**: 
+Overath, Max D., Andreas S. H. Rygaard, Christian P. Jacobsen, et al. *“Predicting Experimental Success in De Novo Binder Design: A Meta-Analysis of 3,766 Experimentally Characterised Binders.”* Preprint, bioRxiv, September 17, 2025. [https://doi.org/10.1101/2025.08.14.670059](https://doi.org/10.1101/2025.08.14.670059)
+
+**Statistical Techniques**:
+
+* Mann–Whitney U: non-parametric rank test
+* Bootstrap: CI estimation without distributional assumptions
+* Nested CV: robust internal + external validation
