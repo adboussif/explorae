@@ -123,7 +123,7 @@ source .venv/bin/activate
   | `--dist` | cutoff distance (Å) pour ipSAE (par défaut `10`) |
   | `--id-col` | nom de la colonne ID dans l'Excel (par défaut `jobs`) |
   | `--sheet` | onglet Excel (index ou nom, par défaut `0`) |
-  | `--af3`   | Compute Alphafold based scores with AlphaFold3 outputs (.cif and .json)|
+  | `--af3`   | Compute Alphafold based scores with AlphaFold3 outputs (mmCIF + confidences.json + summary_confidences.json)|
 
   Exemple :
   ```bash
