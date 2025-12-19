@@ -15,58 +15,45 @@ The latter uses:
 **Main output**: A trained model capable of predicting whether a PPI prediction is viable.
 
 
-## Flux Général du Pipeline
+## Pipeline Overview
 
-┌─────────────────────────────────────────────────┐
-│ 1. DATA LOADING & CLEANING                      │
-│    - Positives (binders)                        │
-│    - Negatives (non-binders)                    │
-│    - Merging & normalization                    │
-└──────────────────┬──────────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────────┐
-│ 2. STRATIFIED TRAIN/VAL/TEST SPLIT (70/10/20)   │
-│    - Avoid data leakage                         │
-│    - Tracked indices for reproducibility        │
-└──────────────────┬──────────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────────┐
-│ 3. EXPLORATORY DATA ANALYSIS (EDA)              │
-│    - Distributions, correlations                │
-│    - Statistical tests (Mann-Whitney U)         │
-│    - Effect sizes (rank-biserial)               │
-│    - Bootstrap 95% CI                           │
-└──────────────────┬──────────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────────┐
-│ 4. UNIVARIATE FEATURE EVALUATION                │
-│    - Average Precision (AP) per feature         │
-│    - ROC AUC                                    │
-└──────────────────┬──────────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────────┐
-│ 5. INTERACTION GENERATION                       │
-│    - Pairwise products f_i × f_j                │
-│    - Top 20 interactions by AP                  │
-│    - Added to the selection pool                │
-└──────────────────┬──────────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────────┐
-│ 6. GREEDY SELECTION (GREEDY + NESTED CV)        │
-│    - Iterative feature addition                 │
-│    - Condition : ΔAP ≥ 0.005                    │
-│    - Internal CV on TRAIN (5-fold stratified)   │
-└──────────────────┬──────────────────────────────┘
-                   ↓
-┌─────────────────────────────────────────────────┐
-│ 7. FINAL EVALUATION ON TEST SET                 │
-│    - Model trained on TRAIN                     │
-│    - Normalization : StandardScaler             │
-│    - Optimal threshold via VALIDATION           │
-│    - AP, AUC, F1, Precision, Recall, Accuracy   │
-│    - Bootstrap 95% CI                           │
-│    - False negative analysis                    │
-└─────────────────────────────────────────────────┘
+1. **Data Loading and Cleaning**
+   - Positive samples (binders)
+   - Negative samples (non-binders)
+   - Dataset merging and normalization
+
+2. **Stratified Train / Validation / Test Split (70 / 10 / 20)**
+   - Prevention of data leakage
+   - Index tracking for full reproducibility
+
+3. **Exploratory Data Analysis (EDA)**
+   - Feature distributions and correlations
+   - Statistical testing (Mann–Whitney U test)
+   - Effect size estimation (rank-biserial correlation)
+   - Bootstrap-based 95% confidence intervals
+
+4. **Univariate Feature Evaluation**
+   - Average Precision (AP) per feature
+   - ROC AUC analysis
+
+5. **Feature Interaction Generation**
+   - Pairwise feature interactions (fᵢ × fⱼ)
+   - Selection of top 20 interactions based on AP
+   - Inclusion in the candidate feature pool
+
+6. **Greedy Feature Selection with Nested Cross-Validation**
+   - Iterative feature addition
+   - Selection criterion: ΔAP ≥ 0.005
+   - Internal 5-fold stratified cross-validation on the training set
+
+7. **Final Evaluation on the Test Set**
+   - Model trained on the full training set
+   - Feature normalization using `StandardScaler`
+   - Optimal decision threshold selected on the validation set
+   - Performance metrics: AP, AUC, F1-score, Precision, Recall, Accuracy
+   - Bootstrap-based 95% confidence intervals
+   - False negative error analysis
+
 
 ## Detailed Sections
 
@@ -99,7 +86,6 @@ The latter uses:
 
 **Key statistics**:
 
-* Descriptive evaluation per class (mean, median, std)
 * Binder vs non-binder comparison
 
 ---
