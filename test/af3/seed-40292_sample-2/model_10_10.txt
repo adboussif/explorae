@@ -1,0 +1,6 @@
+
+Chn1 Chn2  PAE Dist  Type   ipSAE    ipSAE_d0chn ipSAE_d0dom  ipTM_af  ipTM_d0chn     pDockQ     pDockQ2    LIS       n0res  n0chn  n0dom   d0res   d0chn   d0dom  nres1   nres2   dist1   dist2  Model
+A    B     10   10   asym  0.000000    0.000000    0.000000    0.390    0.081409      0.2057     0.0102     0.0000       0    503      0    1.04    7.96    1.04      0       0       0       0   /home/aboussif/M2/PPI/explorae/output_vpg_100/a0a3q7g7n7_lye84_af3/seed-40292_sample-2/model
+B    A     10   10   asym  0.014859    0.461340    0.014859    0.390    0.182149      0.2057     0.0112     0.0782       2    503      3    1.04    7.96    1.04      1       2       1       2   /home/aboussif/M2/PPI/explorae/output_vpg_100/a0a3q7g7n7_lye84_af3/seed-40292_sample-2/model
+A    B     10   10   max   0.014859    0.461340    0.014859    0.390    0.182149      0.2057     0.0112     0.0391       2    503      3    1.04    7.96    1.04      2       1       2       1   /home/aboussif/M2/PPI/explorae/output_vpg_100/a0a3q7g7n7_lye84_af3/seed-40292_sample-2/model
+
