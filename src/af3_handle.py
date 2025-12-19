@@ -130,11 +130,16 @@ def parse_summary_confidences(dirpath: Path) -> Optional[Dict[str, Any]]:
 
 
 def find_af3_files(inter_dir: Path) -> Optional[Tuple[Path, Path, Path]]:
-    cif = inter_dir / "model.cif"
-    pae = inter_dir / "confidences.json"
-    summary = inter_dir / "summary_confidences.json"
-    if cif.exists() and pae.exists() and summary.exists():
-        return cif, pae, summary
+    try:
+        cif = next(inter_dir.glob("*model.cif"))
+        summary = next(inter_dir.glob("*summary_confidences.json"))
+        # Pour confidences.json, on exclut les fichiers summary
+        pae = next(f for f in inter_dir.glob("*confidences.json") if "summary" not in f.name)
+        
+        if cif.exists() and pae.exists() and summary.exists():
+            return cif, pae, summary
+    except StopIteration:
+        pass
     log(f"[WARN] Fichiers AF3 manquants dans {inter_dir.name}")
     return None
 
