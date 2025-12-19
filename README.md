@@ -105,13 +105,15 @@ source .venv/bin/activate
   python ./src/explorae.py ./test.xlsx ./interactions
   ```
 
-  Ce que fait le script :
-  - parcourt `./interactions` (un dossier par interaction),
-  - lit `ranking_debug.json` pour retrouver le modèle top et ipTM/pTM,
-  - calcule ipSAE / pDockQ2 via `ipsae.py` (fichiers de résumé),
-  - lance PRODIGY ( CLI + parsing),
-  - lance PyRosetta InterfaceAnalyze,
-  - met à jour l'Excel/CSV en ajoutant les colonnes (ou les crée si manquantes).
+
+What the script does
+- Iterates over interaction-specific subfolders in ./interactions
+- Identifies the top-ranked AlphaFold model via ranking_debug.json
+- Extracts ipTM and pTM scores
+- Computes ipSAE and pDockQ2
+- Runs PRODIGY and parses its outputs
+- Runs PyRosetta interface analysis
+- Updates or creates columns in the Excel/CSV file
 
   ---
 
