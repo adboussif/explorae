@@ -19,6 +19,7 @@ COL_PRODIGY = "prodigy_kd"
 COL_PRODIGY_DG_INTERNAL = "prodigy_dg_internal"
 COL_IPTM_PTM = "ipTM+pTM"
 COL_PTM = "ipTM"
+COL_ACTIFPTM = "actifpTM"
 COL_dG_SASA_ratio = "dG_SASA_ratio"
 COL_DG_ROSETTA = "dG_rosetta"
 
@@ -78,6 +79,7 @@ def update_excel_write_safe(
         COL_PRODIGY_DG_INTERNAL,
         COL_IPTM_PTM,
         COL_PTM,
+        COL_ACTIFPTM,
         COL_dG_SASA_ratio,
         COL_DG_ROSETTA,
     ):
@@ -109,20 +111,22 @@ def update_excel_write_safe(
         )
 
 
-def parse_summary_confidences(dirpath: Path) -> Optional[Dict[str, Any]]:
-    f = dirpath / "summary_confidences.json"
+def parse_summary_confidences(inter_dir: Path) -> Optional[Dict[str, Any]]:
+    f = next(inter_dir.glob("*summary_confidences.json"))
     if not f.exists():
         return None
     try:
         data = json.loads(f.read_text())
         iptm = data.get("iptm")
         ptm = data.get("ptm")
+        actifpTM = data.get("actifptm")
         # iptm+ptm absent côté AF3 : on le reconstruit 0.8*iptm + 0.2*ptm si possible
         iptm_ptm = 0.8 * iptm + 0.2 * ptm
         return {
             "iptm+ptm": iptm_ptm,
             "iptm": iptm,
             "ptm": ptm,
+            "actifptm": actifpTM,
         }
     except Exception as e:
         log(f"[WARN] summary_confidences.json illisible: {e}")
@@ -306,6 +310,7 @@ def run_af3(excel: Path, interactions_root: Path, sheet, id_col: str, pae_cutoff
             COL_DG_ROSETTA: dG_rosetta,
             COL_IPTM_PTM: conf_data.get("iptm+ptm"),
             COL_PTM: conf_data.get("iptm"),
+            COL_ACTIFPTM: conf_data.get("actifptm"),
             COL_dG_SASA_ratio: dG_SASA_ratio,
         }
     
