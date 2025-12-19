@@ -14,7 +14,7 @@ EXPLORAE automates the post-processing of AlphaFold-Multimer outputs by:
 - running external interaction scoring tools,
 - normalizing and exporting all metrics in a unified, analysis-ready format.
 
-The pipeline is designed for large-scale interaction screening, benchmarking, and machine-learning–driven binder prioritization.
+The pipeline is designed for large-scale interaction screening, benchmarking, and machine-learning–driven binder prioritization (notebooks folder).
 
 ---
 
