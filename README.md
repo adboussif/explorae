@@ -130,7 +130,7 @@ The script does nearly the same for AF3 (without the Energy scores) with AF3 out
 
   Exemple :
   ```bash
-  python ./src/explorae.py test.xlsx ./interactions --pae 12 --dist 8 --id-col jobs --sheet 0
+  python ./src/explorae.py test_af2.xlsx ./test/af2 --pae 12 --dist 8 --id-col jobs --sheet 0
   ```
 
   ---
