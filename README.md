@@ -103,10 +103,11 @@ source .venv/bin/activate
 
   ```bash
   python ./src/explorae.py ./test.xlsx ./interactions
+  python ./src/explorae.py --af3 ./test_af3.xlsx ./test_af3  
   ```
 
 
-What the script does
+What the script does for AF2
 - Iterates over interaction-specific subfolders in ./interactions
 - Identifies the top-ranked AlphaFold model via ranking_debug.json
 - Extracts ipTM and pTM scores
@@ -114,6 +115,8 @@ What the script does
 - Runs PRODIGY and parses its outputs
 - Runs PyRosetta interface analysis
 - Updates or creates columns in the Excel/CSV file
+
+The script does nearly the same for AF3 (without the Energy scores) with AF3 outputs (mmCIF + confidences.json + summary_confidences.json).
 
   ---
 
