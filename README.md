@@ -35,7 +35,7 @@ The Excel/CSV output uses the column names shown below.
 | dG_SASA_ratio | REU/Å² | PyRosetta | Energy normalized by buried surface area |
 
 **Excel column names:**  
-`ipsae`, `pdockq2`,`ipTM`, `iptm+ptm`, `prodigy_kd`, `prodigy_dg_internal`, `dG_rosetta`, `dSASA_int`, `dG_SASA_ratio`
+`ipsae`, `pdockq2`,`ipTM`, `iptm+ptm`, `prodigy_kd`, `prodigy_dg_internal`, `dG_rosetta`, `dG_SASA_ratio`
 
 ---
 
@@ -78,8 +78,6 @@ PRODIGY scores are empirical and best suited for comparative analyses.
 - **dG_cross**  
   Interface energy computed using `InterfaceAnalyzerMover` (Rosetta Energy Units).
 
-- **dSASA_int**  
-  Buried solvent-accessible surface area upon binding (Å²).
 
 - **dG_SASA_ratio**  
   Interface energy normalized by buried surface area:  
@@ -155,6 +153,10 @@ dG Rosetta (dG_cross): 3342.93115234375
 
   ---
 
+## Acknowledgements
+This work was a collaborative effort between Kessen Poitou and Adam Boussif.​
+
+We sincerely thank Dr. Emmanuel Bettler and Dr. Guillaume Launay for their guidance, scientific expertise, and continuous support throughout this research project. Their mentorship was essential to developing this open-source scoring tool for AlphaPullDown outputs.
 
 ## References
 
@@ -177,3 +179,4 @@ This project builds upon and integrates several established tools and recent met
    Bryant et al. *Predicting experimental success in de novo protein binder design.*  
    bioRxiv, 2025.  
    https://www.biorxiv.org/content/10.1101/2025.08.14.670059v1.full.pdf
+
