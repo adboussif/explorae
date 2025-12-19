@@ -26,7 +26,7 @@ The Excel/CSV output uses the column names shown below.
 | Metric | Unit | Source | Description |
 |------|------|--------|------------|
 | ipSAE | – | AlphaFold (PAE transform) | Interface confidence score derived from predicted aligned error |
-| pDockQ2 | – | AlphaFold + regression | Data-driven interface quality score |
+| pDockQ2 | – | AlphaFold + PAE            | Data-driven interface quality score |
 | ipTM+pTM | – | AlphaFold | Combined global and interface ranking score |
 | PRODIGY Kd | M | PRODIGY | Predicted dissociation constant |
 | PRODIGY ΔG (internal) | kcal/mol | PRODIGY | Empirical binding free energy |
@@ -35,7 +35,7 @@ The Excel/CSV output uses the column names shown below.
 | dG_SASA_ratio | REU/Å² | PyRosetta | Energy normalized by buried surface area |
 
 **Excel column names:**  
-`ipsae`, `pdockq2`, `iptm+ptm`, `prodigy_kd`, `prodigy_dg_internal`, `dG_rosetta`, `dSASA_int`, `dG_SASA_ratio`
+`ipsae`, `pdockq2`,`ipTM`, `iptm+ptm`, `prodigy_kd`, `prodigy_dg_internal`, `dG_rosetta`, `dSASA_int`, `dG_SASA_ratio`
 
 ---
 
@@ -139,7 +139,7 @@ The script does nearly the same for AF3 (without the Energy scores) with AF3 out
 
   ---
 
-  ## Exemple de sortie console
+  ## Exemple de sortie
 
   ```
 === A0A3Q7EZF3_SOLLC_and_RdRPL ===
